@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NFC Wallet</string>
+    <string name="service_description">NFC Wallet Payment Service</string>
+    <string name="aid_description">NFC Wallet Payment</string>
+</resources>
