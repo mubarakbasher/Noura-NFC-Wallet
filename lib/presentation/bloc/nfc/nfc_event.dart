@@ -15,15 +15,17 @@ class EnableHceMode extends NfcEvent {
   final String userId;
   final String walletId;
   final String deviceId;
+  final double amount;
 
   const EnableHceMode({
     required this.userId,
     required this.walletId,
     required this.deviceId,
+    required this.amount,
   });
 
   @override
-  List<Object?> get props => [userId, walletId, deviceId];
+  List<Object?> get props => [userId, walletId, deviceId, amount];
 }
 
 class DisableHceMode extends NfcEvent {}
@@ -48,4 +50,14 @@ class NfcError extends NfcEvent {
 
   @override
   List<Object?> get props => [message];
+}
+
+/// Event when payment is sent successfully from HCE (payer side)
+class PaymentSent extends NfcEvent {
+  final double amount;
+
+  const PaymentSent(this.amount);
+
+  @override
+  List<Object?> get props => [amount];
 }

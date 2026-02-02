@@ -1,0 +1,30 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const core_1 = require("@nestjs/core");
+const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
+const app_module_1 = require("./app.module");
+async function bootstrap() {
+    const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    const configService = app.get(config_1.ConfigService);
+    app.enableCors({
+        origin: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language'],
+        credentials: true,
+    });
+    app.useGlobalPipes(new common_1.ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: {
+            enableImplicitConversion: true,
+        },
+    }));
+    const port = configService.get('port') || 3000;
+    await app.listen(port);
+    console.log(`🚀 NFC Wallet Backend running on http://localhost:${port}`);
+    console.log(`📱 API Base URL: http://localhost:${port}/api`);
+}
+bootstrap();
+//# sourceMappingURL=main.js.map

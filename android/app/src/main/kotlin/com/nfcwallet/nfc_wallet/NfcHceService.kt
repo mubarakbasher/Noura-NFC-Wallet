@@ -3,7 +3,6 @@ package com.nfcwallet.nfc_wallet
 import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import android.util.Log
-import java.nio.ByteBuffer
 
 /**
  * NFC Host Card Emulation Service
@@ -30,6 +29,12 @@ class NfcHceService : HostApduService() {
         
         // Shared instance for communication with Flutter
         var currentToken: ByteArray? = null
+        
+        // Callback when token is successfully sent
+        var onTokenSent: (() -> Unit)? = null
+        
+        // Track if token was successfully sent in this session
+        var tokenWasSent: Boolean = false
     }
 
     override fun processCommandApdu(commandApdu: ByteArray?, extras: Bundle?): ByteArray {
@@ -57,7 +62,15 @@ class NfcHceService : HostApduService() {
     }
 
     override fun onDeactivated(reason: Int) {
-        Log.d(TAG, "Service deactivated. Reason: $reason")
+        Log.d(TAG, "Service deactivated. Reason: $reason, tokenWasSent: $tokenWasSent")
+        
+        // If token was successfully sent, notify Flutter
+        if (tokenWasSent) {
+            Log.d(TAG, "Payment was successful! Notifying Flutter...")
+            onTokenSent?.invoke()
+            tokenWasSent = false
+        }
+        
         // Clear token after transaction
         currentToken = null
     }
@@ -116,8 +129,11 @@ class NfcHceService : HostApduService() {
             return AUTHENTICATION_REQUIRED
         }
         
+        // Mark that token was successfully sent
+        tokenWasSent = true
+        
         // Return token + success status
-        Log.d(TAG, "Sending token (${token.size} bytes)")
+        Log.d(TAG, "Sending token (${token.size} bytes) - Payment successful!")
         return token + SUCCESS
     }
 

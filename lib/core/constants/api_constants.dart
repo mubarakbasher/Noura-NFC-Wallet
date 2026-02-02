@@ -1,7 +1,10 @@
+import '../config/environment.dart';
+
 /// API configuration constants
 class ApiConstants {
-  // Base URL - Update this with your actual backend URL
-  static const String baseUrl = 'http://localhost:3000/api';
+  // Base URL - Retrieved from environment configuration
+  // Can be overridden via --dart-define=API_URL=https://your-api.com/api
+  static String get baseUrl => EnvironmentConfig.apiBaseUrl;
   
   // API Endpoints
   static const String login = '/auth/login';
@@ -25,7 +28,7 @@ class ApiConstants {
   static const String contentType = 'application/json';
   static const String authorization = 'Authorization';
   
-  // Timeout
-  static const Duration connectionTimeout = Duration(seconds: 30);
-  static const Duration receiveTimeout = Duration(seconds: 30);
+  // Timeout - Retrieved from environment configuration
+  static Duration get connectionTimeout => EnvironmentConfig.connectionTimeout;
+  static Duration get receiveTimeout => EnvironmentConfig.receiveTimeout;
 }

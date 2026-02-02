@@ -89,9 +89,67 @@ class AppLocalizations {
       'this_week': 'This Week',
       
       // Settings
+      'settings': 'Settings',
       'language': 'Language',
       'english': 'English',
       'arabic': 'Arabic',
+      'appearance': 'Appearance',
+      'dark_mode': 'Dark Mode',
+      'notifications': 'Notifications',
+      'push_notifications': 'Push Notifications',
+      'email_notifications': 'Email Notifications',
+      'transaction_alerts': 'Transaction Alerts',
+      'security': 'Security',
+      'change_pin': 'Change PIN',
+      'biometric_auth': 'Biometric Authentication',
+      'two_factor_auth': 'Two-Factor Authentication',
+      'about': 'About',
+      'privacy_policy': 'Privacy Policy',
+      'terms_of_service': 'Terms of Service',
+      'app_version': 'App Version',
+      'help_support': 'Help & Support',
+      'contact_us': 'Contact Us',
+      'faq': 'FAQ',
+      'rate_app': 'Rate App',
+      
+      // Profile
+      'profile': 'Profile',
+      'edit_profile': 'Edit Profile',
+      'personal_info': 'Personal Information',
+      'phone': 'Phone',
+      'phone_number': 'Phone Number',
+      'member_since': 'Member Since',
+      'account_status': 'Account Status',
+      'verified': 'Verified',
+      'unverified': 'Unverified',
+      'save_changes': 'Save Changes',
+      'change_photo': 'Change Photo',
+      'delete_account': 'Delete Account',
+      'delete_account_warning': 'This action cannot be undone. All your data will be permanently deleted.',
+      
+      // NFC Payment Screen
+      'pay': 'Pay',
+      'receive': 'Receive',
+      'enter_payment_amount': 'Enter Payment Amount',
+      'enter_receive_amount': 'Enter Amount to Receive',
+      'enter_valid_amount': 'Please enter a valid amount',
+      'insufficient_balance': 'Insufficient balance',
+      'continue_to_pay': 'Continue to Pay',
+      'preparing_transaction': 'Preparing transaction...',
+      'paying': 'Paying',
+      'receiving': 'Receiving',
+      'tap_to_pay': 'Tap to Pay',
+      'waiting_for_payment': 'Waiting for Payment',
+      'hold_near_receiver': 'Hold your phone near the receiver device',
+      'confirm_payment_sent': 'Confirm Payment Sent',
+      'processing_payment': 'Processing Payment',
+      'please_wait': 'Please wait...',
+      'payment_successful': 'Payment Successful!',
+      'amount_deducted_successfully': 'Amount deducted from your wallet',
+      'payment_received_successfully': 'Payment credited to your wallet',
+      'payment_failed': 'Payment Failed',
+      'unknown_error': 'An unknown error occurred',
+      'try_again': 'Try Again',
     },
     'ar': {
       // Auth
@@ -169,9 +227,67 @@ class AppLocalizations {
       'this_week': 'هذا الأسبوع',
       
       // Settings
+      'settings': 'الإعدادات',
       'language': 'اللغة',
       'english': 'الإنجليزية',
       'arabic': 'العربية',
+      'appearance': 'المظهر',
+      'dark_mode': 'الوضع الداكن',
+      'notifications': 'الإشعارات',
+      'push_notifications': 'إشعارات الدفع',
+      'email_notifications': 'إشعارات البريد الإلكتروني',
+      'transaction_alerts': 'تنبيهات المعاملات',
+      'security': 'الأمان',
+      'change_pin': 'تغيير الرمز السري',
+      'biometric_auth': 'المصادقة البيومترية',
+      'two_factor_auth': 'المصادقة الثنائية',
+      'about': 'حول',
+      'privacy_policy': 'سياسة الخصوصية',
+      'terms_of_service': 'شروط الخدمة',
+      'app_version': 'إصدار التطبيق',
+      'help_support': 'المساعدة والدعم',
+      'contact_us': 'اتصل بنا',
+      'faq': 'الأسئلة الشائعة',
+      'rate_app': 'قيّم التطبيق',
+      
+      // Profile
+      'profile': 'الملف الشخصي',
+      'edit_profile': 'تعديل الملف الشخصي',
+      'personal_info': 'المعلومات الشخصية',
+      'phone': 'الهاتف',
+      'phone_number': 'رقم الهاتف',
+      'member_since': 'عضو منذ',
+      'account_status': 'حالة الحساب',
+      'verified': 'موثق',
+      'unverified': 'غير موثق',
+      'save_changes': 'حفظ التغييرات',
+      'change_photo': 'تغيير الصورة',
+      'delete_account': 'حذف الحساب',
+      'delete_account_warning': 'لا يمكن التراجع عن هذا الإجراء. سيتم حذف جميع بياناتك نهائياً.',
+      
+      // NFC Payment Screen
+      'pay': 'دفع',
+      'receive': 'استلام',
+      'enter_payment_amount': 'أدخل مبلغ الدفع',
+      'enter_receive_amount': 'أدخل المبلغ المراد استلامه',
+      'enter_valid_amount': 'يرجى إدخال مبلغ صحيح',
+      'insufficient_balance': 'رصيد غير كافٍ',
+      'continue_to_pay': 'متابعة الدفع',
+      'preparing_transaction': 'جاري تحضير المعاملة...',
+      'paying': 'جاري الدفع',
+      'receiving': 'جاري الاستلام',
+      'tap_to_pay': 'انقر للدفع',
+      'waiting_for_payment': 'في انتظار الدفع',
+      'hold_near_receiver': 'قرب هاتفك من جهاز المستلم',
+      'confirm_payment_sent': 'تأكيد إرسال الدفع',
+      'processing_payment': 'جاري معالجة الدفع',
+      'please_wait': 'يرجى الانتظار...',
+      'payment_successful': 'تم الدفع بنجاح!',
+      'amount_deducted_successfully': 'تم خصم المبلغ من محفظتك',
+      'payment_received_successfully': 'تم إضافة المبلغ إلى محفظتك',
+      'payment_failed': 'فشل الدفع',
+      'unknown_error': 'حدث خطأ غير معروف',
+      'try_again': 'حاول مرة أخرى',
     },
   };
 
@@ -248,9 +364,43 @@ class AppLocalizations {
   String get yesterday => translate('yesterday');
   String get thisWeek => translate('this_week');
   
+  String get settings => translate('settings');
   String get language => translate('language');
   String get english => translate('english');
   String get arabic => translate('arabic');
+  String get appearance => translate('appearance');
+  String get darkMode => translate('dark_mode');
+  String get notifications => translate('notifications');
+  String get pushNotifications => translate('push_notifications');
+  String get emailNotifications => translate('email_notifications');
+  String get transactionAlerts => translate('transaction_alerts');
+  String get security => translate('security');
+  String get changePin => translate('change_pin');
+  String get biometricAuth => translate('biometric_auth');
+  String get twoFactorAuth => translate('two_factor_auth');
+  String get about => translate('about');
+  String get privacyPolicy => translate('privacy_policy');
+  String get termsOfService => translate('terms_of_service');
+  String get appVersion => translate('app_version');
+  String get helpSupport => translate('help_support');
+  String get contactUs => translate('contact_us');
+  String get faq => translate('faq');
+  String get rateApp => translate('rate_app');
+  
+  // Profile
+  String get profile => translate('profile');
+  String get editProfile => translate('edit_profile');
+  String get personalInfo => translate('personal_info');
+  String get phone => translate('phone');
+  String get phoneNumber => translate('phone_number');
+  String get memberSince => translate('member_since');
+  String get accountStatus => translate('account_status');
+  String get verified => translate('verified');
+  String get unverified => translate('unverified');
+  String get saveChanges => translate('save_changes');
+  String get changePhoto => translate('change_photo');
+  String get deleteAccount => translate('delete_account');
+  String get deleteAccountWarning => translate('delete_account_warning');
 }
 
 class _AppLocalizationsDelegate

@@ -37,3 +37,15 @@ class AuthError extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+
+/// State emitted after successful registration
+/// Redirects to login with success message
+class RegistrationSuccess extends AuthState {
+  final String message;
+
+  const RegistrationSuccess({this.message = 'Account created successfully! Please login.'});
+
+  @override
+  List<Object?> get props => [message];
+}
+

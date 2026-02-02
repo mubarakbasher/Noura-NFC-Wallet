@@ -19,12 +19,12 @@ abstract class NfcRepository {
   /// Stop NFC reader mode
   Future<Either<Failure, void>> stopReaderMode();
 
-  /// Generate NFC payment token
+  /// Generate NFC payment token with amount
   Future<Either<Failure, NfcToken>> generateNfcToken({
     required String userId,
     required String walletId,
     required String deviceId,
-    required String pin,
+    required double amount,
   });
 
   /// Read NFC tag and extract token

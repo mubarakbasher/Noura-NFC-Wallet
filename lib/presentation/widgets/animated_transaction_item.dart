@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/utils/formatters.dart';
+import '../../core/utils/formatters.dart';
 
 /// Animated Transaction Item
 /// Slides in when added to the list

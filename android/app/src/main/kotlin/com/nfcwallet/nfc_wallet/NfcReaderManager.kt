@@ -4,6 +4,7 @@ import android.app.Activity
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.IsoDep
+import android.util.Base64
 import android.util.Log
 import java.io.IOException
 
@@ -112,57 +113,101 @@ class NfcReaderManager(private val activity: Activity) {
      * Handle discovered NFC tag
      */
     private fun handleTag(tag: Tag) {
-        Log.d(TAG, "Tag discovered: ${tag.id.joinToString("") { "%02X".format(it) }}")
+        Log.d(TAG, "=== NFC TAG DISCOVERED ===")
+        Log.d(TAG, "Tag ID: ${tag.id.joinToString("") { "%02X".format(it) }}")
+        Log.d(TAG, "Tag tech list: ${tag.techList.joinToString()}")
 
         val isoDep = IsoDep.get(tag)
         if (isoDep == null) {
-            Log.w(TAG, "Tag does not support IsoDep")
-            onError?.invoke("Incompatible NFC tag")
+            Log.w(TAG, "Tag does not support IsoDep - available: ${tag.techList.joinToString()}")
+            onError?.invoke("Incompatible NFC tag (no IsoDep)")
             return
         }
 
         try {
+            isoDep.timeout = 5000 // 5 second timeout
             isoDep.connect()
-            Log.d(TAG, "Connected to  tag")
+            Log.d(TAG, "Connected to tag, max transceive: ${isoDep.maxTransceiveLength}")
 
             // Step 1: Select AID
+            Log.d(TAG, "Sending SELECT AID command...")
             val selectResponse = isoDep.transceive(SELECT_APDU)
-            Log.d(TAG, "SELECT response: ${bytesToHex(selectResponse)}")
+            Log.d(TAG, "SELECT response (${selectResponse.size} bytes): ${bytesToHex(selectResponse)}")
 
             if (!isSuccess(selectResponse)) {
-                Log.w(TAG, "SELECT AID failed")
-                onError?.invoke("Failed to select payment application")
+                Log.w(TAG, "SELECT AID failed with response: ${bytesToHex(selectResponse)}")
+                onError?.invoke("Failed to select payment app")
+                isoDep.close()
+                return
+            }
+            Log.d(TAG, "SELECT AID successful!")
+
+            // Step 2: Get payment token
+            Log.d(TAG, "Sending GET TOKEN command...")
+            val tokenResponse = isoDep.transceive(GET_TOKEN_APDU)
+            Log.d(TAG, "GET TOKEN response (${tokenResponse.size} bytes)")
+            
+            // Debug: Show last 4 bytes
+            if (tokenResponse.size >= 4) {
+                val lastBytes = tokenResponse.takeLast(4).toByteArray()
+                Log.d(TAG, "Last 4 bytes: ${bytesToHex(lastBytes)}")
+            }
+
+            // Check for common error codes first
+            if (tokenResponse.size == 2) {
+                val sw = bytesToHex(tokenResponse)
+                Log.w(TAG, "Received status word only: $sw")
+                when (sw) {
+                    "6982" -> onError?.invoke("Payment not ready - payer must enable payment mode first")
+                    "6A82" -> onError?.invoke("Payment app not found")
+                    "6F00" -> onError?.invoke("Unknown error on payment device")
+                    else -> onError?.invoke("Payment error: $sw")
+                }
                 isoDep.close()
                 return
             }
 
-            // Step 2: Get payment token
-            val tokenResponse = isoDep.transceive(GET_TOKEN_APDU)
-            Log.d(TAG, "GET TOKEN response: ${bytesToHex(tokenResponse)}")
-
             if (!isSuccess(tokenResponse)) {
-                Log.w(TAG, "GET TOKEN failed")
-                onError?.invoke("Failed to retrieve payment token")
+                Log.w(TAG, "GET TOKEN response doesn't end with 9000")
+                Log.w(TAG, "Response size: ${tokenResponse.size}")
+                if (tokenResponse.size > 10) {
+                    Log.w(TAG, "First 10 bytes: ${bytesToHex(tokenResponse.take(10).toByteArray())}")
+                    Log.w(TAG, "Last 10 bytes: ${bytesToHex(tokenResponse.takeLast(10).toByteArray())}")
+                }
+                onError?.invoke("Invalid payment response")
                 isoDep.close()
                 return
             }
 
             // Extract token (remove status bytes 9000)
             val token = tokenResponse.copyOfRange(0, tokenResponse.size - 2)
-            val tokenHex = bytesToHex(token)
+            Log.d(TAG, "Token extracted: ${token.size} bytes")
             
-            Log.d(TAG, "Token received successfully (${token.size} bytes)")
-            onTokenReceived?.invoke(tokenHex)
+            // Convert to Base64 for Flutter
+            val tokenBase64 = Base64.encodeToString(token, Base64.NO_WRAP)
+            
+            Log.d(TAG, "=== TOKEN RECEIVED SUCCESSFULLY ===")
+            Log.d(TAG, "Token size: ${token.size} bytes")
+            
+            // Send to Flutter via callback
+            onTokenReceived?.invoke(tokenBase64)
+            Log.d(TAG, "Token sent to Flutter callback")
 
             isoDep.close()
+            Log.d(TAG, "Connection closed")
         } catch (e: IOException) {
-            Log.e(TAG, "Error communicating with tag", e)
-            onError?.invoke("Communication error: ${e.message}")
+            Log.e(TAG, "=== NFC ERROR ===")
+            Log.e(TAG, "Error communicating with tag: ${e.message}", e)
+            onError?.invoke("NFC error: ${e.message}")
             try {
                 isoDep.close()
             } catch (closeError: IOException) {
                 Log.e(TAG, "Error closing connection", closeError)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "=== UNEXPECTED ERROR ===")
+            Log.e(TAG, "Unexpected error: ${e.message}", e)
+            onError?.invoke("Unexpected error: ${e.message}")
         }
     }
 

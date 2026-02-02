@@ -1,0 +1,96 @@
+// NFC Payment Backend - Prisma Schema
+// Database models for user accounts, wallets, transactions, and NFC devices
+// Using SQLite for local development - switch to PostgreSQL in production
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============== MODELS ==============
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  fullName      String
+  phone         String?
+  passwordHash  String
+  pinHash       String?
+  deviceId      String?
+  role          String   @default("USER") // USER, MERCHANT, ADMIN
+  status        String   @default("ACTIVE") // ACTIVE, SUSPENDED, DELETED
+  language      String   @default("en")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  wallet        Wallet?
+  nfcDevices    NfcDevice[]
+  refreshTokens RefreshToken[]
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  currency  String   @default("SDG")
+  status    String   @default("ACTIVE") // ACTIVE, SUSPENDED, CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payerTransactions    Transaction[] @relation("PayerWallet")
+  merchantTransactions Transaction[] @relation("MerchantWallet")
+}
+
+model NfcDevice {
+  id         String    @id @default(uuid())
+  userId     String
+  deviceType String    // CARD, WRISTBAND, PHONE
+  deviceUid  String    @unique
+  label      String?
+  status     String    @default("ACTIVE") // ACTIVE, SUSPENDED, REVOKED
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id               String    @id @default(uuid())
+  payerWalletId    String
+  merchantWalletId String
+  amount           Float
+  currency         String    @default("SDG")
+  status           String    @default("PENDING") // PENDING, COMPLETED, FAILED, CANCELLED
+  type             String    // NFC_PAYMENT, TOPUP, TRANSFER
+  nonce            String?   @unique
+  idempotencyKey   String?   @unique
+  metadata         String?   // JSON stored as string in SQLite
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  payerWallet    Wallet @relation("PayerWallet", fields: [payerWalletId], references: [id])
+  merchantWallet Wallet @relation("MerchantWallet", fields: [merchantWalletId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UsedNonce {
+  id        String   @id @default(uuid())
+  nonce     String   @unique
+  usedAt    DateTime @default(now())
+  expiresAt DateTime
+}

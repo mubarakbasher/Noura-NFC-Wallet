@@ -2,11 +2,15 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/api_constants.dart';
+import '../errors/exceptions.dart';
 
 /// HTTP Client wrapper using Dio for API calls
 class ApiClient {
   late final Dio _dio;
   final FlutterSecureStorage _secureStorage;
+  
+  static const String _accessTokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
 
   ApiClient(this._secureStorage) {
     _dio = Dio(
@@ -30,13 +34,44 @@ class ApiClient {
     );
   }
 
+  // ============== Token Management ==============
+  
+  /// Get stored access token
+  Future<String?> get accessToken => _secureStorage.read(key: _accessTokenKey);
+  
+  /// Get stored refresh token
+  Future<String?> get refreshToken => _secureStorage.read(key: _refreshTokenKey);
+
+  /// Store tokens after login/register
+  Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    await _secureStorage.write(key: _accessTokenKey, value: accessToken);
+    await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
+  }
+
+  /// Clear tokens on logout
+  Future<void> clearTokens() async {
+    await _secureStorage.delete(key: _accessTokenKey);
+    await _secureStorage.delete(key: _refreshTokenKey);
+  }
+
+  /// Check if user has valid tokens
+  Future<bool> get hasTokens async {
+    final token = await accessToken;
+    return token != null && token.isNotEmpty;
+  }
+
+  // ============== Interceptors ==============
+
   /// Add authorization token to requests
   Future<void> _onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
     // Get access token from secure storage
-    final token = await _secureStorage.read(key: 'access_token');
+    final token = await _secureStorage.read(key: _accessTokenKey);
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -56,13 +91,48 @@ class ApiClient {
     DioException error,
     ErrorInterceptorHandler handler,
   ) async {
-    // Handle 401 Unauthorized - refresh token logic can go here
+    // Handle 401 Unauthorized - try to refresh token
     if (error.response?.statusCode == 401) {
-      // TODO: Implement token refresh logic
-      // For now, just pass the error
+      final refresh = await _secureStorage.read(key: _refreshTokenKey);
+      
+      if (refresh != null) {
+        try {
+          // Try to refresh the token
+          final refreshResponse = await _dio.post(
+            ApiConstants.refresh,
+            data: {'refreshToken': refresh},
+            options: Options(
+              headers: {'Authorization': 'Bearer $refresh'},
+            ),
+          );
+          
+          if (refreshResponse.statusCode == 200 || refreshResponse.statusCode == 201) {
+            final newAccessToken = refreshResponse.data['accessToken'];
+            final newRefreshToken = refreshResponse.data['refreshToken'] ?? refresh;
+            
+            // Save new tokens
+            await saveTokens(
+              accessToken: newAccessToken,
+              refreshToken: newRefreshToken,
+            );
+            
+            // Retry the original request with new token
+            final opts = error.requestOptions;
+            opts.headers['Authorization'] = 'Bearer $newAccessToken';
+            
+            final retryResponse = await _dio.fetch(opts);
+            return handler.resolve(retryResponse);
+          }
+        } catch (refreshError) {
+          // Token refresh failed, clear tokens and let error propagate
+          await clearTokens();
+        }
+      }
     }
     handler.next(error);
   }
+
+  // ============== HTTP Methods ==============
 
   /// GET request
   Future<Response> get(
@@ -142,20 +212,36 @@ class ApiClient {
   Exception _handleError(DioException error) {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
-      return Exception('Connection timeout. Please check your internet connection.');
+      return NetworkException('Connection timeout. Please check your internet connection.');
     }
 
     if (error.type == DioExceptionType.connectionError) {
-      return Exception('No internet connection. Please try again.');
+      return NetworkException('No internet connection. Please try again.');
     }
 
     if (error.response != null) {
       final statusCode = error.response!.statusCode;
-      final message = error.response!.data['message'] ?? 'An error occurred';
+      final message = error.response!.data is Map 
+          ? error.response!.data['message'] ?? 'An error occurred'
+          : 'An error occurred';
 
-      return Exception('Server Error ($statusCode): $message');
+      switch (statusCode) {
+        case 400:
+          return BadRequestException(message);
+        case 401:
+          return UnauthorizedException(message);
+        case 403:
+          return ForbiddenException(message);
+        case 404:
+          return NotFoundException(message);
+        case 409:
+          return ConflictException(message);
+        default:
+          return ServerException(message, statusCode);
+      }
     }
 
-    return Exception('An unexpected error occurred');
+    return ServerException('An unexpected error occurred');
   }
 }
+

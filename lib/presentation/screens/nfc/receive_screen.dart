@@ -4,8 +4,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/nfc/nfc_bloc.dart';
 import '../../bloc/nfc/nfc_event.dart';
 import '../../bloc/nfc/nfc_state.dart';
+import '../../bloc/wallet/wallet_bloc.dart';
+import '../../bloc/wallet/wallet_state.dart';
+import '../../bloc/wallet/wallet_event.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../widgets/nfc_pulse_indicator.dart';
+import '../../widgets/transaction_success_overlay.dart';
+import 'dart:convert';
 
+/// Receive Screen - Merchant receives payment via NFC
+/// Simply listens for NFC and extracts amount from payer's token
 class ReceiveScreen extends StatefulWidget {
   const ReceiveScreen({Key? key}) : super(key: key);
 
@@ -13,387 +24,354 @@ class ReceiveScreen extends StatefulWidget {
   State<ReceiveScreen> createState() => _ReceiveScreenState();
 }
 
-class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProviderStateMixin {
-  final TextEditingController _amountController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  double? _amount;
-  String? _receivedToken;
-  
-  late AnimationController _scanAnimationController;
-  late Animation<double> _scanAnimation;
+class _ReceiveScreenState extends State<ReceiveScreen> {
+  bool _isListening = false;
+  bool _isProcessing = false;
+  double? _receivedAmount;
 
   @override
   void initState() {
     super.initState();
-    
-    // Scanning animation
-    _scanAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    )..repeat();
-
-    _scanAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _scanAnimationController, curve: Curves.easeInOut),
-    );
+    // Auto-start listening when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startListening();
+    });
   }
 
   @override
   void dispose() {
-    _amountController.dispose();
-    _scanAnimationController.dispose();
-    // Stop reader mode when leaving screen
-    context.read<NfcBloc>().add(StopReaderMode());
+    if (_isListening) {
+      try {
+        context.read<NfcBloc>().add(StopReaderMode());
+      } catch (e) {
+        debugPrint('Error stopping reader mode: $e');
+      }
+    }
     super.dispose();
   }
 
-  void _startReceiving() {
-    if (_formKey.currentState!.validate()) {
+  void _startListening() {
+    debugPrint('🎧 Starting NFC listener...');
+    setState(() {
+      _isListening = true;
+      _isProcessing = false;
+      _receivedAmount = null;
+    });
+
+    context.read<NfcBloc>().add(StartReaderMode());
+    HapticFeedback.mediumImpact();
+  }
+
+  void _stopListening() {
+    debugPrint('🛑 Stopping NFC listener...');
+    setState(() {
+      _isListening = false;
+      _isProcessing = false;
+    });
+    context.read<NfcBloc>().add(StopReaderMode());
+  }
+
+  void _processToken(String token) {
+    debugPrint('🔄 Processing token...');
+    debugPrint('📦 Token length: ${token.length}');
+    debugPrint('📝 Token preview: ${token.substring(0, token.length > 80 ? 80 : token.length)}...');
+    
+    setState(() {
+      _isProcessing = true;
+    });
+
+    // Decode the token to extract amount
+    try {
+      debugPrint('🔓 Decoding base64...');
+      final bytes = base64Decode(token);
+      debugPrint('📊 Decoded ${bytes.length} bytes');
+      
+      final decoded = utf8.decode(bytes);
+      debugPrint('📄 JSON string: $decoded');
+      
+      final tokenData = jsonDecode(decoded);
+      debugPrint('✅ JSON parsed successfully!');
+      debugPrint('📋 Token data: $tokenData');
+      
+      final amount = (tokenData['amount'] as num?)?.toDouble() ?? 0.0;
+      debugPrint('💰 Amount extracted: $amount');
+      
       setState(() {
-        _amount = double.parse(_amountController.text);
+        _receivedAmount = amount;
       });
-      context.read<NfcBloc>().add(StartReaderMode());
+
+      // Show success overlay
+      _showSuccess(amount);
+      
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error processing token: $e');
+      debugPrint('📚 Stack trace: $stackTrace');
+      _showError('Failed to read payment: $e');
     }
   }
 
-  void _stopReceiving() {
-    context.read<NfcBloc>().add(StopReaderMode());
-    setState(() {
-      _amount = null;
+  void _showSuccess(double amount) {
+    debugPrint('🎉 Showing success overlay for amount: $amount');
+    HapticFeedback.heavyImpact();
+    _stopListening();
+    
+    // Update wallet balance (credit) - this will update the balance locally
+    context.read<WalletBloc>().add(NfcTransactionCompleted(
+      amount: amount,
+      isCredit: true, // Receiving money
+      merchantName: 'NFC Payment Received',
+    ));
+    
+    // Show the beautiful success overlay
+    TransactionSuccessOverlay.show(
+      context,
+      amount: amount,
+      isCredit: true,
+    );
+    
+    // Go back after overlay dismisses
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     });
   }
 
-  void _processPayment(String token) {
+  void _showError(String error) {
+    debugPrint('❌ Showing error: $error');
+    HapticFeedback.heavyImpact();
+    
     setState(() {
-      _receivedToken = token;
+      _isProcessing = false;
     });
     
-    // In a real app, send token to backend for validation
-    // For demo, just show success
-    Future.delayed(const Duration(seconds: 1), () {
-      _showSuccessDialog();
-    });
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: const [
-            Icon(Icons.check_circle, color: Colors.green, size: 32),
-            SizedBox(width: 12),
-            Text('Payment Received!'),
-          ],
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: () {
+            setState(() {
+              _isProcessing = false;
+            });
+          },
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Amount: ${Formatters.formatCurrency(_amount!)}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Token: ${_receivedToken?.substring(0, 16)}...',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Return to dashboard
-            },
-            child: const Text('Done'),
-          ),
-        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
-        title: const Text('Receive Payment'),
-        backgroundColor: Colors.orange[700],
-        foregroundColor: Colors.white,
+        title: Text(
+          'Receive Payment',
+          style: AppTextStyles.titleLarge,
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            _stopListening();
+            Navigator.pop(context);
+          },
+        ),
       ),
-      body: BlocConsumer<NfcBloc, NfcState>(
+      body: BlocListener<NfcBloc, NfcState>(
         listener: (context, state) {
-          if (state is NfcFailureState) {
+          debugPrint('📡 NFC State changed: ${state.runtimeType}');
+          
+          if (state is ReaderTagDetected) {
+            debugPrint('🏷️ Tag detected with token!');
+            if (!_isProcessing) {
+              _processToken(state.token);
+            }
+          } else if (state is NfcFailureState) {
+            debugPrint('❌ NFC Failure: ${state.message}');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: Colors.red,
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
               ),
             );
-          } else if (state is ReaderTagDetected) {
-            _processPayment(state.token);
-            context.read<NfcBloc>().add(StopReaderMode());
+          } else if (state is ReaderWaitingForTag) {
+            debugPrint('👂 Reader is now waiting for tag...');
           }
         },
-        builder: (context, state) {
-          if (state is ReaderWaitingForTag) {
-            return _buildScanningView();
-          }
-          
-          return _buildAmountInputView(state);
-        },
-      ),
-    );
-  }
-
-  Widget _buildAmountInputView(NfcState state) {
-    final isActivating = state is ReaderActivating;
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 20),
-
-            // Icon
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.qr_code_scanner,
-                size: 60,
-                color: Colors.orange,
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Title
-            const Text(
-              'Enter Amount',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              'Enter the amount to receive from customer',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Amount Input
-            TextFormField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-              decoration: InputDecoration(
-                prefixText: '\$ ',
-                prefixStyle: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[400],
-                ),
-                hintText: '0.00',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.orange[200]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.orange, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter an amount';
-                }
-                final amount = double.tryParse(value);
-                if (amount == null || amount <= 0) {
-                  return 'Please enter a valid amount';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 32),
-
-            // Quick Amount Buttons
-            const Text(
-              'Quick Select',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-
-            const SizedBox(height: 12),
-
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [10, 20, 50, 100].map((amount) {
-                return ActionChip(
-                  label: Text('\$$amount'),
-                  onPressed: () {
-                    _amountController.text = amount.toString();
-                  },
-                  backgroundColor: Colors.orange[50],
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 40),
-
-            // Start Button
-            SizedBox(
-              height: 56,
-              child: ElevatedButton(
-                onPressed: isActivating ? null : _startReceiving,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: isActivating
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Start Receiving',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-            ),
-          ],
+        child: BlocBuilder<NfcBloc, NfcState>(
+          builder: (context, nfcState) {
+            return _buildListeningView(nfcState, isDark);
+          },
         ),
       ),
     );
   }
 
-  Widget _buildScanningView() {
-    return Padding(
-      padding: const EdgeInsets.all(24),
+  Widget _buildListeningView(NfcState nfcState, bool isDark) {
+    NfcPulseState pulseState = NfcPulseState.listening;
+    String statusText = 'Waiting for Payment...';
+    String subtitleText = 'Ask the customer to tap their phone';
+
+    if (_isProcessing) {
+      pulseState = NfcPulseState.success;
+      statusText = 'Processing Payment...';
+      subtitleText = 'Reading payment data';
+    } else if (nfcState is ReaderTagDetected) {
+      pulseState = NfcPulseState.success;
+      statusText = 'Payment Detected!';
+      subtitleText = 'Processing...';
+    } else if (nfcState is NfcFailureState) {
+      pulseState = NfcPulseState.error;
+      statusText = 'Error Reading NFC';
+      subtitleText = nfcState.message;
+    } else if (nfcState is ReaderWaitingForTag) {
+      pulseState = NfcPulseState.listening;
+      statusText = 'Ready to Receive';
+      subtitleText = 'Waiting for customer to tap...';
+    } else if (nfcState is ReaderActivating) {
+      pulseState = NfcPulseState.listening;
+      statusText = 'Activating...';
+      subtitleText = 'Getting ready...';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.space32),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Spacer(),
-
-          // Animated Scanning Indicator
-          SizedBox(
-            width: 200,
-            height: 200,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Outer pulsing circle
-                AnimatedBuilder(
-                  animation: _scanAnimation,
-                  builder: (context, child) {
-                    return Container(
-                      width: 200 * (0.8 + 0.2 * _scanAnimation.value),
-                      height: 200 * (0.8 + 0.2 * _scanAnimation.value),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.orange.withOpacity(0.3 * (1 - _scanAnimation.value)),
-                          width: 3,
-                        ),
+          // Merchant Info Banner
+          BlocBuilder<WalletBloc, WalletState>(
+            builder: (context, walletState) {
+              String balance = '---';
+              if (walletState is WalletLoaded) {
+                balance = Formatters.formatCurrency(walletState.balance);
+              }
+              
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.space24,
+                  vertical: AppTheme.space16,
+                ),
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
+                  boxShadow: AppTheme.elevatedShadow(color: AppColors.primaryBlue),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Your Balance',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.white.withOpacity(0.9),
                       ),
-                    );
-                  },
-                ),
-                // Inner circle
-                Container(
-                  width: 160,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.orange,
-                      width: 3,
                     ),
-                  ),
-                  child: const Icon(
-                    Icons.nfc,
-                    size: 80,
-                    color: Colors.orange,
-                  ),
+                    const SizedBox(height: AppTheme.space4),
+                    Text(
+                      balance,
+                      style: AppTextStyles.headlineLarge.copyWith(
+                        color: AppColors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: AppTheme.space48),
+
+          // NFC Pulse Indicator
+          NfcPulseIndicator(
+            state: pulseState,
+            size: 250,
+          ),
+
+          const SizedBox(height: AppTheme.space48),
+
+          // Status Text
+          Text(
+            statusText,
+            style: AppTextStyles.headlineMedium.copyWith(
+              color: pulseState == NfcPulseState.success
+                  ? AppColors.success
+                  : pulseState == NfcPulseState.error
+                      ? AppColors.error
+                      : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: AppTheme.space12),
 
           Text(
-            'Waiting for Customer',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+            subtitleText,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
             ),
+            textAlign: TextAlign.center,
           ),
 
-          const SizedBox(height: 8),
-
-          Text(
-            'Amount: ${Formatters.formatCurrency(_amount!)}',
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Colors.orange,
+          // Show received amount if available
+          if (_receivedAmount != null) ...[
+            const SizedBox(height: AppTheme.space24),
+            Container(
+              padding: const EdgeInsets.all(AppTheme.space16),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(color: AppColors.success, width: 2),
+              ),
+              child: Text(
+                'Received: ${Formatters.formatCurrency(_receivedAmount!)}',
+                style: AppTextStyles.headlineMedium.copyWith(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
+          ],
 
-          const SizedBox(height: 24),
+          const SizedBox(height: AppTheme.space24),
 
+          // Instructions Card
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppTheme.space16),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.infoLight.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              border: Border.all(
+                color: AppColors.info.withOpacity(0.3),
+                width: 1,
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.info, color: Colors.orange),
-                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.phone_android_rounded,
+                    color: AppColors.info,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: AppTheme.space12),
                 Expanded(
                   child: Text(
-                    'Ask customer to tap their NFC-enabled phone or card',
-                    style: TextStyle(color: Colors.grey[700]),
+                    'Customer enters amount on their phone and taps',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.info,
+                    ),
                   ),
                 ),
               ],
@@ -402,24 +380,44 @@ class _ReceiveScreenState extends State<ReceiveScreen> with SingleTickerProvider
 
           const Spacer(),
 
-          // Cancel Button
+          // Debug: Current state display
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'State: ${nfcState.runtimeType}',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: AppTheme.space16),
+
+          // Stop Button
           SizedBox(
             width: double.infinity,
-            height: 56,
             child: OutlinedButton(
-              onPressed: _stopReceiving,
+              onPressed: () {
+                _stopListening();
+                Navigator.pop(context);
+              },
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.orange, width: 2),
+                padding: const EdgeInsets.symmetric(vertical: AppTheme.space16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 ),
+                side: BorderSide(color: AppColors.error, width: 2),
+                foregroundColor: AppColors.error,
               ),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
+              child: Text(
+                'Stop Receiving',
+                style: AppTextStyles.button.copyWith(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange,
                 ),
               ),
             ),

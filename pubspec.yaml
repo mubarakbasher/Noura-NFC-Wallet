@@ -69,6 +69,11 @@ dependencies:
   
   # Internationalization
   intl: ^0.20.2
+  
+  # UI Enhancement
+  google_fonts: ^6.1.0
+  shimmer: ^3.0.0
+  flutter_svg: ^2.0.9
 
 dev_dependencies:
   flutter_test:

@@ -11,19 +11,26 @@ abstract class WalletEvent extends Equatable {
 
 class LoadWallet extends WalletEvent {}
 
+class RefreshWallet extends WalletEvent {}
+
+/// Event to reset wallet state on logout
+class ResetWallet extends WalletEvent {}
+
 class NfcTransactionCompleted extends WalletEvent {
   final double amount;
   final bool isCredit; // true for receiving, false for sending
   final String? merchantName;
+  final String? token; // Encrypted token from NFC tag
 
   const NfcTransactionCompleted({
     required this.amount,
     required this.isCredit,
     this.merchantName,
+    this.token,
   });
 
   @override
-  List<Object?> get props => [amount, isCredit, merchantName];
+  List<Object?> get props => [amount, isCredit, merchantName, token];
 }
 
 class AddTransaction extends WalletEvent {
@@ -43,3 +50,4 @@ class UpdateBalance extends WalletEvent {
   @override
   List<Object?> get props => [newBalance];
 }
+

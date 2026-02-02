@@ -23,6 +23,26 @@ class Wallet extends Equatable {
   bool get isActive => status == 'active';
   bool get hasSufficientBalance => balance > 0;
 
+  Wallet copyWith({
+    String? id,
+    String? userId,
+    double? balance,
+    String? currency,
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Wallet(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      balance: balance ?? this.balance,
+      currency: currency ?? this.currency,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,

@@ -38,6 +38,16 @@ class HceActive extends NfcState {
 
 class HceInactive extends NfcState {}
 
+/// State when payment was successfully sent via HCE (payer side)
+class HcePaymentSent extends NfcState {
+  final double amount;
+
+  const HcePaymentSent(this.amount);
+
+  @override
+  List<Object?> get props => [amount];
+}
+
 // Reader States
 class ReaderActivating extends NfcState {}
 

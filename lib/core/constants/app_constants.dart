@@ -25,8 +25,8 @@ class AppConstants {
   static const String statusCancelled = 'cancelled';
   
   // Currency
-  static const String defaultCurrency = 'USD';
-  static const String currencySymbol = '\$';
+  static const String defaultCurrency = 'SDG';
+  static const String currencySymbol = 'ج.س';
   
   // Validation
   static const int minPinLength = 4;

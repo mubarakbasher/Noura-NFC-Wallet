@@ -1,6 +1,8 @@
 package com.nfcwallet.nfc_wallet
 
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -26,6 +28,9 @@ class NfcMethodChannel(
     private var methodChannel: MethodChannel? = null
     private var eventChannel: EventChannel? = null
     private var eventSink: EventChannel.EventSink? = null
+    
+    // Main thread handler for posting events
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     /**
      * Initialize method channel
@@ -59,7 +64,8 @@ class NfcMethodChannel(
                     val userId = call.argument<String>("userId")
                     val walletId = call.argument<String>("walletId")
                     val deviceId = call.argument<String>("deviceId")
-                    handleGenerateToken(userId, walletId, deviceId, result)
+                    val amount = call.argument<Double>("amount")
+                    handleGenerateToken(userId, walletId, deviceId, amount, result)
                 }
                 else -> {
                     result.notImplemented()
@@ -76,12 +82,13 @@ class NfcMethodChannel(
         eventChannel?.setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                 eventSink = events
-                Log.d(TAG, "Event stream listener attached")
+                Log.d(TAG, "=== EVENT STREAM LISTENER ATTACHED ===")
+                Log.d(TAG, "eventSink is now: ${if (eventSink != null) "SET" else "NULL"}")
             }
 
             override fun onCancel(arguments: Any?) {
                 eventSink = null
-                Log.d(TAG, "Event stream listener cancelled")
+                Log.d(TAG, "=== EVENT STREAM LISTENER CANCELLED ===")
             }
         })
 
@@ -106,20 +113,38 @@ class NfcMethodChannel(
      */
     private fun handleStartReaderMode(result: MethodChannel.Result) {
         try {
+            Log.d(TAG, "=== STARTING READER MODE ===")
+            Log.d(TAG, "Event sink available: ${eventSink != null}")
+            
             nfcReaderManager.enableReaderMode(
                 onTokenReceived = { token ->
-                    Log.d(TAG, "Token received in reader mode")
-                    // Send to Flutter via event channel
-                    eventSink?.success(mapOf(
-                        "event" to "onTokenReceived",
-                        "token" to token
-                    ))
+                    Log.d(TAG, "=== TOKEN RECEIVED IN METHOD CHANNEL ===")
+                    Log.d(TAG, "Token length: ${token.length}")
+                    
+                    // Post to main thread to avoid threading issues
+                    mainHandler.post {
+                        Log.d(TAG, "Sending event to Flutter on main thread")
+                        Log.d(TAG, "Event sink available: ${eventSink != null}")
+                        
+                        val eventData = mapOf(
+                            "event" to "onTokenReceived",
+                            "token" to token
+                        )
+                        eventSink?.success(eventData)
+                        Log.d(TAG, "Event sent to Flutter!")
+                    }
                 },
                 onError = { error ->
-                    Log.e(TAG, "Reader mode error: $error")
-                    eventSink?.error("READER_ERROR", error, null)
+                    Log.e(TAG, "=== READER ERROR ===")
+                    Log.e(TAG, "Error: $error")
+                    
+                    // Post error to main thread
+                    mainHandler.post {
+                        eventSink?.error("READER_ERROR", error, null)
+                    }
                 }
             )
+            Log.d(TAG, "Reader mode enabled successfully")
             result.success(true)
         } catch (e: Exception) {
             Log.e(TAG, "Error starting reader mode", e)
@@ -145,10 +170,31 @@ class NfcMethodChannel(
      */
     private fun handleEnableHce(result: MethodChannel.Result) {
         try {
-            // HCE is automatically enabled when service is declared in manifest
-            // Here we just confirm it's ready
+            // Set up callback for when payment is completed
+            NfcHceService.onTokenSent = {
+                Log.d(TAG, "=== PAYMENT SENT CALLBACK TRIGGERED ===")
+                Log.d(TAG, "eventSink status: ${if (eventSink != null) "AVAILABLE" else "NULL"}")
+                // Notify Flutter that payment was sent successfully
+                mainHandler.post {
+                    Log.d(TAG, "Posting to main thread - eventSink: ${if (eventSink != null) "AVAILABLE" else "NULL"}")
+                    if (eventSink != null) {
+                        Log.d(TAG, "Sending payment_sent event to Flutter")
+                        eventSink?.success(mapOf(
+                            "event" to "onPaymentSent",
+                            "success" to true
+                        ))
+                        Log.d(TAG, "Event sent successfully!")
+                    } else {
+                        Log.e(TAG, "ERROR: eventSink is null, cannot send event to Flutter!")
+                    }
+                }
+            }
+            
+            // Reset the sent flag
+            NfcHceService.tokenWasSent = false
+            
             result.success(true)
-            Log.d(TAG, "HCE mode enabled")
+            Log.d(TAG, "HCE mode enabled with callback")
         } catch (e: Exception) {
             Log.e(TAG, "Error enabling HCE", e)
             result.error("HCE_ERROR", e.message, null)
@@ -177,6 +223,7 @@ class NfcMethodChannel(
         userId: String?,
         walletId: String?,
         deviceId: String?,
+        amount: Double?,
         result: MethodChannel.Result
     ) {
         if (userId == null || walletId == null || deviceId == null) {
@@ -185,13 +232,15 @@ class NfcMethodChannel(
         }
 
         try {
-            val token = securityManager.generateNfcToken(userId, walletId, deviceId)
+            val tokenAmount = amount ?: 0.0
+            val token = securityManager.generateNfcToken(userId, walletId, deviceId, tokenAmount)
             val tokenBytes = securityManager.tokenToBytes(token)
             
             // Store token in HCE service for NFC transmission
             NfcHceService.currentToken = tokenBytes
             
-            Log.d(TAG, "Token generated and stored for HCE")
+            Log.d(TAG, "Token generated and stored for HCE with amount: $tokenAmount")
+            Log.d(TAG, "Token bytes length: ${tokenBytes.size}")
             result.success(token)
         } catch (e: Exception) {
             Log.e(TAG, "Error generating token", e)

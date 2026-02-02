@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/transaction.dart';
+import '../../../domain/entities/wallet.dart';
 
 /// Wallet States
 abstract class WalletState extends Equatable {
@@ -14,30 +15,32 @@ class WalletInitial extends WalletState {}
 class WalletLoading extends WalletState {}
 
 class WalletLoaded extends WalletState {
-  final double balance;
+  final Wallet wallet;
   final List<Transaction> transactions;
-  final String walletId;
 
   const WalletLoaded({
-    required this.balance,
+    required this.wallet,
     required this.transactions,
-    required this.walletId,
   });
 
   @override
-  List<Object?> get props => [balance, transactions, walletId];
+  List<Object?> get props => [wallet, transactions];
 
   WalletLoaded copyWith({
-    double? balance,
+    Wallet? wallet,
     List<Transaction>? transactions,
-    String? walletId,
   }) {
     return WalletLoaded(
-      balance: balance ?? this.balance,
+      wallet: wallet ?? this.wallet,
       transactions: transactions ?? this.transactions,
-      walletId: walletId ?? this.walletId,
     );
   }
+
+  // Convenience getters
+  String get id => wallet.id;
+  double get balance => wallet.balance;
+  String get currency => wallet.currency;
+  String get userId => wallet.userId;
 }
 
 class WalletTransactionSuccess extends WalletState {
@@ -53,6 +56,13 @@ class WalletTransactionSuccess extends WalletState {
 
   @override
   List<Object?> get props => [amount, isCredit, wallet];
+
+  // Convenience getters (delegate to the internal WalletLoaded state)
+  String get id => wallet.id;
+  double get balance => wallet.balance;
+  String get currency => wallet.currency;
+  String get userId => wallet.userId;
+  List<Transaction> get transactions => wallet.transactions;
 }
 
 class WalletError extends WalletState {

@@ -1,0 +1,61 @@
+{
+    "common": {
+        "success": "تمت العملية بنجاح",
+        "error": "حدث خطأ",
+        "notFound": "المورد غير موجود",
+        "unauthorized": "غير مصرح بالوصول",
+        "forbidden": "الوصول ممنوع",
+        "badRequest": "طلب غير صالح",
+        "serverError": "خطأ في الخادم"
+    },
+    "auth": {
+        "loginSuccess": "تم تسجيل الدخول بنجاح",
+        "registerSuccess": "تم التسجيل بنجاح",
+        "logoutSuccess": "تم تسجيل الخروج بنجاح",
+        "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+        "emailExists": "البريد الإلكتروني مسجل مسبقاً",
+        "tokenExpired": "انتهت صلاحية الرمز",
+        "tokenInvalid": "رمز غير صالح",
+        "refreshSuccess": "تم تحديث الرمز بنجاح"
+    },
+    "user": {
+        "profileUpdated": "تم تحديث الملف الشخصي بنجاح",
+        "pinUpdated": "تم تحديث الرقم السري بنجاح",
+        "pinInvalid": "الرقم السري غير صحيح",
+        "notFound": "المستخدم غير موجود"
+    },
+    "wallet": {
+        "topupSuccess": "تمت الإضافة بنجاح",
+        "insufficientBalance": "الرصيد غير كافٍ",
+        "walletSuspended": "المحفظة موقوفة",
+        "walletNotFound": "المحفظة غير موجودة",
+        "invalidAmount": "مبلغ غير صالح"
+    },
+    "transaction": {
+        "completed": "تمت المعاملة بنجاح",
+        "pending": "المعاملة قيد الانتظار",
+        "failed": "فشلت المعاملة",
+        "cancelled": "تم إلغاء المعاملة",
+        "notFound": "المعاملة غير موجودة",
+        "invalidToken": "رمز الدفع غير صالح",
+        "tokenExpired": "انتهت صلاحية رمز الدفع",
+        "duplicateNonce": "تم اكتشاف معاملة مكررة",
+        "doubleSpend": "تمت معالجة المعاملة بالفعل",
+        "session_created": "تم إنشاء جلسة الدفع بنجاح",
+        "session_not_found": "جلسة الدفع غير موجودة أو منتهية الصلاحية",
+        "payment_successful": "تم الدفع بنجاح - تم خصم المبلغ",
+        "payment_received": "تم استلام الدفع بنجاح",
+        "payment_failed": "فشل الدفع - يرجى المحاولة مرة أخرى",
+        "insufficient_balance": "رصيد غير كافٍ لهذه المعاملة",
+        "processing": "جاري معالجة الدفع...",
+        "waiting_for_payment": "في انتظار الدفع"
+    },
+    "nfcDevice": {
+        "linked": "تم ربط الجهاز بنجاح",
+        "unlinked": "تم إلغاء ربط الجهاز بنجاح",
+        "alreadyLinked": "الجهاز مرتبط بالفعل",
+        "notFound": "الجهاز غير موجود",
+        "invalidDevice": "جهاز غير صالح"
+    },
+    "wallet_not_found": "المحفظة غير موجودة"
+}

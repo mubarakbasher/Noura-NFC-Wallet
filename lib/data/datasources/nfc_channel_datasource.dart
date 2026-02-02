@@ -70,11 +70,12 @@ class NfcChannelDatasource {
     }
   }
 
-  /// Generate NFC token
+  /// Generate NFC token with payment amount
   Future<String> generateNfcToken({
     required String userId,
     required String walletId,
     required String deviceId,
+    required double amount,
   }) async {
     try {
       final token = await _methodChannel.invokeMethod<String>(
@@ -83,6 +84,7 @@ class NfcChannelDatasource {
           'userId': userId,
           'walletId': walletId,
           'deviceId': deviceId,
+          'amount': amount,
         },
       );
       

@@ -1,0 +1,61 @@
+{
+    "common": {
+        "success": "Operation completed successfully",
+        "error": "An error occurred",
+        "notFound": "Resource not found",
+        "unauthorized": "Unauthorized access",
+        "forbidden": "Access forbidden",
+        "badRequest": "Invalid request",
+        "serverError": "Internal server error"
+    },
+    "auth": {
+        "loginSuccess": "Login successful",
+        "registerSuccess": "Registration successful",
+        "logoutSuccess": "Logged out successfully",
+        "invalidCredentials": "Invalid email or password",
+        "emailExists": "Email already registered",
+        "tokenExpired": "Token has expired",
+        "tokenInvalid": "Invalid token",
+        "refreshSuccess": "Token refreshed successfully"
+    },
+    "user": {
+        "profileUpdated": "Profile updated successfully",
+        "pinUpdated": "PIN updated successfully",
+        "pinInvalid": "Invalid PIN",
+        "notFound": "User not found"
+    },
+    "wallet": {
+        "topupSuccess": "Top-up successful",
+        "insufficientBalance": "Insufficient balance",
+        "walletSuspended": "Wallet is suspended",
+        "walletNotFound": "Wallet not found",
+        "invalidAmount": "Invalid amount"
+    },
+    "transaction": {
+        "completed": "Transaction completed successfully",
+        "pending": "Transaction is pending",
+        "failed": "Transaction failed",
+        "cancelled": "Transaction cancelled",
+        "notFound": "Transaction not found",
+        "invalidToken": "Invalid payment token",
+        "tokenExpired": "Payment token has expired",
+        "duplicateNonce": "Duplicate transaction detected",
+        "doubleSpend": "Transaction already processed",
+        "session_created": "Payment session created successfully",
+        "session_not_found": "Payment session not found or expired",
+        "payment_successful": "Payment Successful - Amount deducted successfully",
+        "payment_received": "Payment Received Successfully",
+        "payment_failed": "Payment failed - Please try again",
+        "insufficient_balance": "Insufficient balance for this transaction",
+        "processing": "Processing payment...",
+        "waiting_for_payment": "Waiting for payment"
+    },
+    "nfcDevice": {
+        "linked": "Device linked successfully",
+        "unlinked": "Device unlinked successfully",
+        "alreadyLinked": "Device is already linked",
+        "notFound": "Device not found",
+        "invalidDevice": "Invalid device"
+    },
+    "wallet_not_found": "Wallet not found"
+}

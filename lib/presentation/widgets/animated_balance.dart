@@ -48,6 +48,7 @@ class _AnimatedBalanceWidgetState extends State<AnimatedBalanceWidget>
     super.didUpdateWidget(oldWidget);
     
     if (oldWidget.balance != widget.balance) {
+      print('🎯 Balance changed from ${oldWidget.balance} to ${widget.balance}');
       _previousBalance = oldWidget.balance;
       
       _animation = Tween<double>(

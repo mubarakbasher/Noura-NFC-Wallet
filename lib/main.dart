@@ -3,19 +3,32 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'injection_container.dart' as di;
+import 'core/config/environment.dart';
 import 'core/localization/app_localizations.dart';
 import 'core/localization/locale_provider.dart';
+import 'core/theme/app_theme.dart';
 import 'presentation/bloc/nfc/nfc_bloc.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/auth/auth_event.dart';
 import 'presentation/bloc/auth/auth_state.dart';
 import 'presentation/bloc/wallet/wallet_bloc.dart';
 import 'presentation/bloc/wallet/wallet_event.dart';
+import 'presentation/bloc/transaction/transaction_bloc.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/home/dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize environment configuration
+  // Override via --dart-define=ENV=production for release builds
+  const envString = String.fromEnvironment('ENV', defaultValue: 'development');
+  final env = switch (envString) {
+    'production' => Environment.production,
+    'staging' => Environment.staging,
+    _ => Environment.development,
+  };
+  EnvironmentConfig.init(env);
   
   // Initialize dependencies
   await di.initializeDependencies();
@@ -36,7 +49,10 @@ class MyApp extends StatelessWidget {
           create: (context) => di.sl<AuthBloc>()..add(CheckAuthStatus()),
         ),
         BlocProvider(
-          create: (context) => di.sl<WalletBloc>()..add(LoadWallet()),
+          create: (context) => di.sl<WalletBloc>(),
+        ),
+        BlocProvider(
+          create: (context) => di.sl<TransactionBloc>(),
         ),
       ],
       child: Consumer<LocaleProvider>(
@@ -44,11 +60,9 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'NFC Wallet',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              useMaterial3: true,
-              scaffoldBackgroundColor: Colors.grey[100],
-            ),
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeMode.system,
             locale: localeProvider.locale,
             supportedLocales: const [
               Locale('en'),
@@ -60,20 +74,28 @@ class MyApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            home: BlocBuilder<AuthBloc, AuthState>(
-              builder: (context, state) {
-                if (state is Authenticated) {
-                  return const DashboardScreen();
-                } else if (state is Unauthenticated || state is AuthError) {
-                  return const LoginScreen();
+            home: BlocListener<AuthBloc, AuthState>(
+              listener: (context, state) {
+                if (state is Unauthenticated) {
+                  // Reset wallet state when user logs out
+                  context.read<WalletBloc>().add(ResetWallet());
                 }
-                // Show loading while checking auth status
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
               },
+              child: BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, state) {
+                  if (state is Authenticated) {
+                    return const DashboardScreen();
+                  } else if (state is Unauthenticated || state is AuthError || state is RegistrationSuccess) {
+                    return const LoginScreen();
+                  }
+                  // Show loading while checking auth status
+                  return const Scaffold(
+                    body: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                },
+              ),
             ),
           );
         },
